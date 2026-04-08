@@ -8,7 +8,7 @@ def grade(task_id: str, fixed_code: str, explanation: str, expected_fixes: list)
     score = 0.0
     
     if not fixed_code:
-        return score
+        return 0.01
         
     if explanation and len(explanation.strip()) > 10:
         score += 0.2
@@ -16,14 +16,14 @@ def grade(task_id: str, fixed_code: str, explanation: str, expected_fixes: list)
     ast_report = analyze_python_code(fixed_code)
     
     if not ast_report["valid_python"]:
-        return 0.0  # Invalid python gets zero score
+        return 0.01  # Invalid python gets zero score
         
     score += 0.3
     
     if task_id == "hard_1":
         # SQL Injection fix
         if ast_report["has_sql_injection_pattern"]:
-            return score # Code is valid but still vulnerable
+            return max(0.01, min(0.99, score)) # Code is valid but still vulnerable
         
         # Check if they parameterized
         if any(fix in fixed_code for fix in ["?", "%s", "execute(", ":"]):
@@ -36,4 +36,4 @@ def grade(task_id: str, fixed_code: str, explanation: str, expected_fixes: list)
         if has_env_usage and "sk_test_" not in fixed_code:
             score += 0.5
             
-    return min(1.0, score)
+    return max(0.01, min(0.99, score))
