@@ -1,0 +1,8 @@
+name: "CodeGuardian"
+version: "1.0.0"
+description: "A code security review environment where agents identify and fix vulnerabilities across three difficulty levels."
+author: "apploretech"
+type: "api"
+entry_point: "server.app:app"
+requirements:
+  - "requirements.txt"
