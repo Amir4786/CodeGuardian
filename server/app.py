@@ -7,6 +7,15 @@ app = FastAPI(title="CodeGuardian OpenEnv API", description="Security focused co
 
 env = SecurityEnv()
 
+@app.get("/")
+def home():
+    return {
+        "name": "CodeGuardian OpenEnv API",
+        "status": "running",
+        "message": "Welcome to the CodeGuardian Environment. Use the OpenEnv SDK or visit /docs to interact with the endpoints.",
+        "endpoints": ["/reset (POST)", "/step (POST)", "/state (GET)"]
+    }
+
 class StepResponse(BaseModel):
     observation: Observation
     reward: float
