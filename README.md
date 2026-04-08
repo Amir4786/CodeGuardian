@@ -63,14 +63,26 @@ CodeGuardian doesn't just evaluate test logic! You can now use the underlying Op
    ```
 
 2. **API Endpoint (`/scan`):**
-   The FastAPI container exposes a new `/scan` endpoint that can process files directly! You can ping it locally if you are running docker, or test it against your public Hugging Face space remotely through cURL:
+   The FastAPI container exposes a new `/scan` endpoint that can process files natively! You can ping it locally if you are running docker, or test it against your public Hugging Face space remotely through cURL.
+
+   **Example: Scanning Raw Code Remotely**
+   Hugging Face servers cannot read local files from your Mac's hard drive, so to scan custom python code using your public URL, you must pass the code directly as a string payload (`code_content`):
    ```bash
-   # Make sure to swap to localhost:7860 if executing locally!
    curl -X POST https://amir4786-codeguardian.hf.space/scan \\
         -H "Content-Type: application/json" \\
-        -d '{"file_path": "/home/user/app/server", "code_content": null}'
+        -d '{
+              "file_path": null,
+              "code_content": "import mysql.connector\\n\\ndef get_user(user_id):\\n    conn = mysql.connector.connect(host=\\"localhost\\", user=\\"root\\", password=\\"password\\")\\n    cursor = conn.cursor()\\n    cursor.execute(\\"SELECT * FROM users WHERE id = \\" + str(user_id))\\n    return cursor.fetchall()"
+            }'
    ```
-   *Note: Passing a folder via `file_path` will recursively aggregate and scan all Python files found within.* Alternatively, you can pass `"code_content": "def test(): pass"` directly instead.
+   
+   **Output Explanation:**
+   The live environment processes the code and immediately returns a comprehensive JSON vulnerability report perfectly identifying:
+   - The **Hardcoded Secret**: Identifies that `"password"` is exposed exactly on Line 4.
+   - The **SQL Injection**: Flags the `WHERE id = " + str(user_id)` query flaw on Line 6 natively.
+   - **Remediation**: Recommends inserting environment variables (`os.getenv()`) and rewriting using parameterized queries respectively!
+
+   *(Note: You can alternatively pass a string like `"file_path": "/home/user/app/server"` if scanning files that mathematically exist inside the Docker container.)*
 
 ## OpenEnv Compatibility
 This repository fully supports the OpenEnv standard `openenv.yaml` specification and provides HTTP methods supporting `reset`, `state`, and `step`.
