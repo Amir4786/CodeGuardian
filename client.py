@@ -1,9 +1,10 @@
+import os
 import httpx
 from models import Action, Observation
 
 class CodeGuardianClient:
-    def __init__(self, base_url="http://localhost:7860"):
-        self.base_url = base_url
+    def __init__(self, base_url=None):
+        self.base_url = base_url or os.environ.get("ENV_BASE_URL", "http://localhost:7860")
         self.client = httpx.Client(timeout=30.0)
 
     def reset(self):
