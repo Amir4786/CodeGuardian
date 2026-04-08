@@ -16,7 +16,7 @@ dependencies = [
     "python-dotenv",
     "httpx",
     "sqlparse",
-    "openenv-core>=0.1.0"
+    "openenv>=0.1.13"
 ]
 
 [project.scripts]
