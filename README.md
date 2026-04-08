@@ -63,11 +63,12 @@ CodeGuardian doesn't just evaluate test logic! You can now use the underlying Op
    ```
 
 2. **API Endpoint (`/scan`):**
-   The FastAPI container exposes a new `/scan` endpoint that can process files directly!
+   The FastAPI container exposes a new `/scan` endpoint that can process files directly! You can ping it locally if you are running docker, or test it against your public Hugging Face space remotely through cURL:
    ```bash
-   curl -X POST http://localhost:7860/scan \\
+   # Make sure to swap to localhost:7860 if executing locally!
+   curl -X POST https://amir4786-codeguardian.hf.space/scan \\
         -H "Content-Type: application/json" \\
-        -d '{"file_path": "/app/server", "code_content": null}'
+        -d '{"file_path": "/home/user/app/server", "code_content": null}'
    ```
    *Note: Passing a folder via `file_path` will recursively aggregate and scan all Python files found within.* Alternatively, you can pass `"code_content": "def test(): pass"` directly instead.
 
