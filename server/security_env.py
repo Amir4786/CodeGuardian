@@ -8,29 +8,24 @@ from graders.hard_grader import grade as grade_hard
 
 class SecurityEnv:
     def __init__(self):
+        self._difficulty_cycle = ["easy", "medium", "hard"]
+        self._cycle_idx = -1
         self.reset()
         
     def reset(self):
-        self.current_difficulty = "easy"
-        self.task_idx = 0
-        self.cumulative_reward = 0.0
+        self._cycle_idx = (self._cycle_idx + 1) % len(self._difficulty_cycle)
+        self.current_difficulty = self._difficulty_cycle[self._cycle_idx]
+        self.task_idx = 0 # Just take the first task of each type for simplicity in validation
+        self.cumulative_reward = 0.01
         self.all_tasks = {
             "easy": EASY_TASKS,
             "medium": MEDIUM_TASKS,
             "hard": HARD_TASKS
         }
+        self.is_done = False
         return self.state()
         
     def state(self) -> Observation:
-        if self.current_difficulty is None:
-            return Observation(
-                code_snippet="All tasks completed.",
-                difficulty="done",
-                instructions="You have finished all tasks.",
-                current_reward=round(self.cumulative_reward, 2),
-                done=True
-            )
-            
         current_task = self.all_tasks[self.current_difficulty][self.task_idx]
         
         instructions = ""
@@ -45,13 +40,13 @@ class SecurityEnv:
             code_snippet=current_task["code"],
             difficulty=self.current_difficulty,
             instructions=instructions,
-            current_reward=round(self.cumulative_reward, 2),
-            done=False
+            current_reward=round(self.cumulative_reward, 3),
+            done=self.is_done
         )
 
     def step(self, action: Action):
-        if self.current_difficulty is None:
-            return self.state(), 0.0, True, {}
+        if self.is_done:
+            return self.state(), 0.01, True, {}
             
         current_task = self.all_tasks[self.current_difficulty][self.task_idx]
         
@@ -72,19 +67,9 @@ class SecurityEnv:
                 current_task.get("expected_fixes", [])
             )
         
-        # Strictly between 0 and 1, ensure no 0.0 or 1.0
+        # Strictly between 0 and 1
         reward = max(0.01, min(0.99, score))
         self.cumulative_reward += reward
-        
-        # Advance state
-        self.task_idx += 1
-        if self.task_idx >= len(self.all_tasks[self.current_difficulty]):
-            self.task_idx = 0
-            if self.current_difficulty == "easy":
-                self.current_difficulty = "medium"
-            elif self.current_difficulty == "medium":
-                self.current_difficulty = "hard"
-            else:
-                self.current_difficulty = None
+        self.is_done = True
                 
-        return self.state(), round(reward, 2), self.current_difficulty is None, {"score": score}
+        return self.state(), round(reward, 2), True, {"score": score}

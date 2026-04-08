@@ -23,72 +23,61 @@ def main():
     openai_client = OpenAI(api_key=api_key, base_url=base_url)
     env_client = CodeGuardianClient()
 
-    # Get task name from environment or use default
-    task_name = os.environ.get("TASK_NAME", "codeguardian_security")
-    
-    # Print START line with required format
-    print(f"[START] task={task_name} env=codeguardian model={model_name}")
-    
-    step_num = 0
-    rewards_list = []
-    success = True
-    
-    try:
-        obs = env_client.reset()
-    except Exception as e:
-        print(f"[END] success=false steps=0 rewards=[] error=\"Connection failed: {e}\"")
-        return
+    # Run exactly 3 episodes (Easy, Medium, Hard) as required by OpenEnv spec
+    for _ in range(3):
+        try:
+            obs = env_client.reset()
+        except Exception as e:
+            # Emit END line on failure as per rules
+            print(f"[END] success=false steps=0 rewards=0.00 error=\"Connection failed: {e}\"")
+            continue
 
-    while not obs.done and step_num < 50:  # Limit steps to prevent infinite loops
-        step_num += 1
+        # Format START line correctly
+        print(f"[START] task={obs.difficulty}_task env=codeguardian model={model_name}")
         
-        if obs.difficulty == "easy":
-            system_prompt = f"""Analyze this code for hardcoded secrets (API keys, passwords, tokens). Return ONLY valid JSON matching:
-            {{ "vulnerable_lines": [integer, 1-indexed line numbers] }}
-            Code:
-            {obs.code_snippet}
-            """
-        elif obs.difficulty == "medium":
-            system_prompt = f"""Analyze this code for SQL injection vulnerabilities. Return ONLY valid JSON matching:
-            {{ "vulnerable_lines": [integer, 1-indexed line numbers] }}
-            Code:
-            {obs.code_snippet}
-            """
-        else:
-            system_prompt = f"""{obs.instructions} Return ONLY valid JSON matching:
-            {{ "fixed_code": "secure code string", "explanation": "string" }}
-            Code:
-            {obs.code_snippet}
-            """
-
+        step_num = 1
+        rewards_list = []
+        success = True
         error_msg = "null"
+        
+        # Build prompt based on current difficulty
+        if obs.difficulty == "easy":
+            prompt = f"Analyze for secrets. Return JSON: {{\"vulnerable_lines\": [int]}}\nCode:\n{obs.code_snippet}"
+        elif obs.difficulty == "medium":
+            prompt = f"Analyze for SQLi. Return JSON: {{\"vulnerable_lines\": [int]}}\nCode:\n{obs.code_snippet}"
+        else:
+            prompt = f"{obs.instructions}\nCode:\n{obs.code_snippet}"
+
         try:
             response = openai_client.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a code security expert. Respond strictly with JSON format."},
-                    {"role": "user", "content": system_prompt}
+                    {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"}
             )
             raw_content = response.choices[0].message.content
             action_data = json.loads(raw_content)
             action = Action(**action_data)
-            action_str = json.dumps(action_data).replace('"', '\\"')
+            # Remove spaces from JSON for log safety
+            action_str = json.dumps(action_data, separators=(',', ':'))
         except Exception as e:
-            # Fallback action
             action = Action()
             action_str = "{}"
             success = False
             error_msg = f"\"{str(e)}\""
 
+        # Step and collect reward
         obs, reward, done, info = env_client.step(action)
-        rewards_list.append(round(reward, 2))
+        rewards_list.append(reward)
         
-        # Format the step log exactly as required
-        print(f"[STEP] step={step_num} action=\"{action_str}\" reward={reward:.2f} done={str(done).lower()} error={error_msg}")
-
-    print(f"[END] success={str(success).lower()} steps={step_num} rewards={json.dumps(rewards_list)}")
+        # Format logs correctly
+        print(f"[STEP] step={step_num} action={action_str} reward={reward:.2f} done={str(done).lower()} error={error_msg}")
+        
+        # Comma separated rewards string
+        rewards_str = ",".join([f"{r:.2f}" for r in rewards_list])
+        print(f"[END] success={str(success).lower()} steps={step_num} rewards={rewards_str}")
 
 if __name__ == "__main__":
     main()
