@@ -54,33 +54,15 @@ class SecurityEnv:
             return self.state(), 0.0, True, {}
             
         current_task = self.all_tasks[self.current_difficulty][self.task_idx]
-        reward = 0.0
-        
-        # Reward logic based on User Spec
-        # +0.1 per line analyzed (we will award this for the length of code lines automatically or based on interaction)
-        lines_analyzed = len(current_task["code"].strip().split('\\n'))
-        reward += 0.1 * lines_analyzed
         
         score = 0.0
         if self.current_difficulty == "easy":
             true_lines = current_task.get("secret_lines", [])
             score = grade_easy(action.vulnerable_lines, true_lines)
             
-            true_set = set(true_lines)
-            agent_set = set(action.vulnerable_lines if action.vulnerable_lines else [])
-            tp = len(true_set.intersection(agent_set))
-            fp = len(agent_set - true_set)
-            reward += (tp * 0.5) - (fp * 0.3)
-            
         elif self.current_difficulty == "medium":
             true_lines = current_task.get("vulnerable_lines", [])
             score = grade_medium(action.vulnerable_lines, true_lines)
-            
-            true_set = set(true_lines)
-            agent_set = set(action.vulnerable_lines if action.vulnerable_lines else [])
-            tp = len(true_set.intersection(agent_set))
-            fp = len(agent_set - true_set)
-            reward += (tp * 0.5) - (fp * 0.3)
             
         elif self.current_difficulty == "hard":
             score = grade_hard(
@@ -89,11 +71,9 @@ class SecurityEnv:
                 action.explanation if action.explanation else "", 
                 current_task.get("expected_fixes", [])
             )
-            if score >= 0.8:
-                reward += 0.4
-            elif score == 0.0 and action.fixed_code:
-                reward -= 0.5
-                
+        
+        # Strictly between 0 and 1, ensure no 0.0 or 1.0
+        reward = max(0.01, min(0.99, score))
         self.cumulative_reward += reward
         
         # Advance state
